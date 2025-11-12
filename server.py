@@ -1,19 +1,15 @@
 #!/usr/bin/env python3
 """
 LinkedIn Viral Content Generator MCP Server
-
-A minimal FastMCP server that integrates with Apify actors to scrape social media content
-and generate viral LinkedIn posts using hook templates and content patterns.
+Complete implementation with Railway deployment support
 """
 
-#!/usr/bin/env python3
 import os
 import json
 import requests
 import time
 import re
-from typing import Dict, Optional, Any
-from typing import List
+from typing import Dict, Optional, Any, List
 from pathlib import Path
 
 from fastmcp import FastMCP
@@ -25,7 +21,7 @@ load_dotenv()
 # Initialize FastMCP server
 mcp = FastMCP("LinkedIn Viral Content Generator")
 
-# Configuration - lazy loading to avoid module-level API connections
+# Configuration - lazy loading to avoid startup issues
 def get_config():
     return {
         "APIFY_TOKEN": os.getenv("APIFY_TOKEN"),
@@ -116,16 +112,7 @@ def load_knowledge_base() -> Dict[str, str]:
 
 @mcp.tool()
 def start_content_discovery(niche: str, platform: str) -> str:
-    """
-    Start the content discovery process for a specific niche and platform.
-    
-    Args:
-        niche: The topic/niche to research (e.g., "AI content creation tools")
-        platform: The platform to scrape ("youtube", "tiktok", "instagram", "linkedin")
-    
-    Returns:
-        Confirmation message with next steps
-    """
+    """Start the content discovery process for a specific niche and platform."""
     workflow_state["current_niche"] = niche
     workflow_state["selected_platform"] = platform.lower()
     
@@ -134,16 +121,7 @@ def start_content_discovery(niche: str, platform: str) -> str:
 
 @mcp.tool()
 def scrape_youtube_videos(search_query: str, max_results: int = 5) -> Dict[str, Any]:
-    """
-    Scrape YouTube videos for the given search query.
-    
-    Args:
-        search_query: The search term/keyword
-        max_results: Maximum number of videos to return (default: 5)
-    
-    Returns:
-        Dictionary containing scraped video data
-    """
+    """Scrape YouTube videos for the given search query."""
     input_data = {
         "searchQueries": [search_query],
         "maxResults": max_results,
@@ -157,9 +135,8 @@ def scrape_youtube_videos(search_query: str, max_results: int = 5) -> Dict[str, 
     result = make_apify_request("streamers/youtube-scraper", input_data)
     
     if result["status"] == "success":
-        workflow_state["discovered_content"] = result["data"][:5]  # Store top 5
+        workflow_state["discovered_content"] = result["data"][:5]
         
-        # Format response for user selection
         videos_summary = []
         for i, video in enumerate(workflow_state["discovered_content"], 1):
             videos_summary.append({
@@ -183,16 +160,7 @@ def scrape_youtube_videos(search_query: str, max_results: int = 5) -> Dict[str, 
 
 @mcp.tool()
 def scrape_tiktok_videos(hashtag: str, results_per_page: int = 15) -> Dict[str, Any]:
-    """
-    Scrape TikTok videos for the given hashtag.
-    
-    Args:
-        hashtag: The hashtag to search (without #)
-        results_per_page: Number of results to return (default: 15)
-    
-    Returns:
-        Dictionary containing scraped TikTok data
-    """
+    """Scrape TikTok videos for the given hashtag."""
     input_data = {
         "hashtags": [hashtag],
         "resultsPerPage": results_per_page,
@@ -206,9 +174,8 @@ def scrape_tiktok_videos(hashtag: str, results_per_page: int = 15) -> Dict[str, 
     result = make_apify_request("clockworks/tiktok-scraper", input_data)
     
     if result["status"] == "success":
-        workflow_state["discovered_content"] = result["data"][:5]  # Store top 5
+        workflow_state["discovered_content"] = result["data"][:5]
         
-        # Format response for user selection
         videos_summary = []
         for i, video in enumerate(workflow_state["discovered_content"], 1):
             videos_summary.append({
@@ -233,16 +200,7 @@ def scrape_tiktok_videos(hashtag: str, results_per_page: int = 15) -> Dict[str, 
 
 @mcp.tool()
 def scrape_instagram_posts(username: str, results_limit: int = 12) -> Dict[str, Any]:
-    """
-    Scrape Instagram posts from a profile.
-    
-    Args:
-        username: Instagram username (without @)
-        results_limit: Number of posts to scrape (default: 12)
-    
-    Returns:
-        Dictionary containing scraped Instagram data
-    """
+    """Scrape Instagram posts from a profile."""
     input_data = {
         "usernames": [username],
         "resultsLimit": results_limit
@@ -251,9 +209,8 @@ def scrape_instagram_posts(username: str, results_limit: int = 12) -> Dict[str, 
     result = make_apify_request("apify/instagram-scraper", input_data)
     
     if result["status"] == "success":
-        workflow_state["discovered_content"] = result["data"][:5]  # Store top 5
+        workflow_state["discovered_content"] = result["data"][:5]
         
-        # Format response for user selection
         posts_summary = []
         for i, post in enumerate(workflow_state["discovered_content"], 1):
             posts_summary.append({
@@ -277,15 +234,7 @@ def scrape_instagram_posts(username: str, results_limit: int = 12) -> Dict[str, 
 
 @mcp.tool()
 def scrape_linkedin_posts(profile_url: str) -> Dict[str, Any]:
-    """
-    Scrape LinkedIn posts from a profile.
-    
-    Args:
-        profile_url: Full LinkedIn profile URL
-    
-    Returns:
-        Dictionary containing scraped LinkedIn data
-    """
+    """Scrape LinkedIn posts from a profile."""
     input_data = {
         "profileUrl": profile_url
     }
@@ -293,9 +242,8 @@ def scrape_linkedin_posts(profile_url: str) -> Dict[str, Any]:
     result = make_apify_request("apimaestro/linkedin-profile-posts", input_data)
     
     if result["status"] == "success":
-        workflow_state["discovered_content"] = result["data"][:5]  # Store top 5
+        workflow_state["discovered_content"] = result["data"][:5]
         
-        # Format response for user selection
         posts_summary = []
         for i, post in enumerate(workflow_state["discovered_content"], 1):
             posts_summary.append({
@@ -319,15 +267,7 @@ def scrape_linkedin_posts(profile_url: str) -> Dict[str, Any]:
 
 @mcp.tool()
 def select_content(index: int) -> str:
-    """
-    Select a piece of content for detailed analysis.
-    
-    Args:
-        index: The index of the content to select (1-based)
-    
-    Returns:
-        Confirmation message with selected content details
-    """
+    """Select a piece of content for detailed analysis."""
     if not workflow_state["discovered_content"]:
         return "❌ No content discovered yet. Please run a scraping tool first."
     
@@ -362,12 +302,7 @@ def select_content(index: int) -> str:
 
 @mcp.tool()
 def analyze_comments() -> Dict[str, Any]:
-    """
-    Analyze comments/engagement for the selected content.
-    
-    Returns:
-        Dictionary containing comment analysis results
-    """
+    """Analyze comments/engagement for the selected content."""
     if not workflow_state["selected_content"]:
         return {"error": "No content selected. Please select content first."}
     
@@ -414,8 +349,6 @@ def analyze_comments() -> Dict[str, Any]:
     
     if result["status"] == "success":
         comments = result["data"]
-        
-        # Analyze comments for insights
         analysis = analyze_comment_patterns(comments)
         workflow_state["analyzed_data"] = analysis
         
@@ -434,35 +367,29 @@ def analyze_comment_patterns(comments: List[Dict[str, Any]]) -> Dict[str, Any]:
     if not comments:
         return {"error": "No comments to analyze"}
     
-    # Extract comment texts
     comment_texts = []
     for comment in comments:
         text = comment.get("text", "") or comment.get("comment", "") or comment.get("content", "")
         if text:
             comment_texts.append(text.lower())
     
-    # Simple pattern analysis
     pain_points = []
     questions = []
     positive_sentiment = 0
     negative_sentiment = 0
     
-    # Keywords that indicate pain points
     pain_keywords = ["problem", "issue", "difficult", "hard", "struggle", "can't", "won't", "doesn't work"]
     question_words = ["how", "what", "why", "when", "where", "which"]
     positive_words = ["great", "awesome", "love", "amazing", "helpful", "thanks", "good"]
     negative_words = ["bad", "terrible", "hate", "useless", "waste", "wrong", "stupid"]
     
     for text in comment_texts:
-        # Check for pain points
         if any(keyword in text for keyword in pain_keywords):
             pain_points.append(text[:100])
         
-        # Check for questions
         if any(word in text for word in question_words) and "?" in text:
             questions.append(text[:100])
         
-        # Simple sentiment analysis
         if any(word in text for word in positive_words):
             positive_sentiment += 1
         if any(word in text for word in negative_words):
@@ -478,49 +405,36 @@ def analyze_comment_patterns(comments: List[Dict[str, Any]]) -> Dict[str, Any]:
             "negative": round((negative_sentiment / total_comments) * 100, 1) if total_comments > 0 else 0,
             "neutral": round((neutral_sentiment / total_comments) * 100, 1) if total_comments > 0 else 0
         },
-        "pain_points": pain_points[:3],  # Top 3
-        "common_questions": questions[:3],  # Top 3
+        "pain_points": pain_points[:3],
+        "common_questions": questions[:3],
         "engagement_level": "high" if total_comments > 50 else "medium" if total_comments > 10 else "low"
     }
 
 
 @mcp.tool()
 def analyze_content_transcript() -> Dict[str, Any]:
-    """
-    Analyze the transcript/content of the selected item.
-    
-    Returns:
-        Dictionary containing content analysis results
-    """
+    """Analyze the transcript/content of the selected item."""
     if not workflow_state["selected_content"]:
         return {"error": "No content selected. Please select content first."}
     
     selected = workflow_state["selected_content"]
     platform = workflow_state["selected_platform"]
     
-    # Extract content based on platform
     content_text = ""
     
     if platform == "youtube":
-        # Get subtitles/transcript
         content_text = selected.get("subtitles", "") or selected.get("description", "")
     elif platform == "tiktok":
-        # Get video text/description
         content_text = selected.get("text", "")
     elif platform == "instagram":
-        # Get caption
         content_text = selected.get("caption", "")
     elif platform == "linkedin":
-        # Get post text
         content_text = selected.get("text", "")
     
     if not content_text:
         return {"error": "No content text found for analysis"}
     
-    # Analyze content for key insights
     analysis = extract_content_insights(content_text)
-    
-    # Merge with existing analyzed data
     workflow_state["analyzed_data"].update(analysis)
     
     return {
@@ -533,7 +447,6 @@ def analyze_content_transcript() -> Dict[str, Any]:
 
 def extract_content_insights(text: str) -> Dict[str, Any]:
     """Extract key insights from content text."""
-    # Simple pattern matching for insights
     insights = {
         "quantitative_metrics": [],
         "frameworks": [],
@@ -541,8 +454,6 @@ def extract_content_insights(text: str) -> Dict[str, Any]:
         "transformation_stories": [],
         "core_message": ""
     }
-    
-    # Look for numbers and percentages
     
     # Find percentages
     percentages = re.findall(r'\b\d+%', text)
@@ -586,15 +497,7 @@ def extract_content_insights(text: str) -> Dict[str, Any]:
 
 @mcp.tool()
 def select_hooks(hook_indices: List[int]) -> Dict[str, Any]:
-    """
-    Select hooks from the knowledge base for content creation.
-    
-    Args:
-        hook_indices: List of hook indices to select (1-based)
-    
-    Returns:
-        Dictionary containing selected hooks and next steps
-    """
+    """Select hooks from the knowledge base for content creation."""
     knowledge = load_knowledge_base()
     hooks_content = knowledge["hooks"]
     
@@ -603,7 +506,6 @@ def select_hooks(hook_indices: List[int]) -> Dict[str, Any]:
             "error": "Knowledge base not loaded. Please update knowledge_base/hooks.md with actual hook templates."
         }
     
-    # For now, return a placeholder response since we need the actual hooks
     workflow_state["selected_hooks"] = hook_indices
     
     return {
@@ -616,25 +518,19 @@ def select_hooks(hook_indices: List[int]) -> Dict[str, Any]:
 
 @mcp.tool()
 def generate_content_ideas() -> Dict[str, Any]:
-    """
-    Generate content ideas based on analyzed data and selected hooks.
-    
-    Returns:
-        Dictionary containing generated content ideas
-    """
+    """Generate content ideas based on analyzed data and selected hooks."""
     if not workflow_state["analyzed_data"]:
         return {"error": "No analyzed data available. Please analyze content first."}
     
     analyzed_data = workflow_state["analyzed_data"]
     
-    # Generate content ideas based on analysis
     ideas = []
     
     # Use quantitative metrics if available
     metrics = analyzed_data.get("quantitative_metrics", [])
     if metrics:
-        for metric in metrics[:2]:  # Use top 2 metrics
-            idea = f"The #{1} mistake I see with {workflow_state['current_niche']}? {metric} of people focus on the wrong approach. After analyzing viral content, I discovered the real opportunity lies in [key insight]."
+        for metric in metrics[:2]:
+            idea = f"The #1 mistake I see with {workflow_state['current_niche']}? {metric} of people focus on the wrong approach. After analyzing viral content, I discovered the real opportunity lies in [key insight]."
             ideas.append(idea)
     
     # Use pain points from comments
@@ -654,7 +550,7 @@ def generate_content_ideas() -> Dict[str, Any]:
     if not ideas:
         ideas.append(f"The truth about {workflow_state['current_niche']} that nobody talks about...")
     
-    workflow_state["content_ideas"] = ideas[:3]  # Keep top 3
+    workflow_state["content_ideas"] = ideas[:3]
     
     return {
         "status": "success",
@@ -666,25 +562,16 @@ def generate_content_ideas() -> Dict[str, Any]:
 
 @mcp.tool()
 def generate_linkedin_posts(selected_idea_index: int = 1) -> Dict[str, Any]:
-    """
-    Generate LinkedIn posts based on selected content idea.
-    
-    Args:
-        selected_idea_index: Index of the content idea to use (1-based, default: 1)
-    
-    Returns:
-        Dictionary containing generated LinkedIn posts
-    """
+    """Generate LinkedIn posts based on selected content idea."""
     if not workflow_state["content_ideas"]:
         return {"error": "No content ideas available. Please generate content ideas first."}
     
     if selected_idea_index < 1 or selected_idea_index > len(workflow_state["content_ideas"]):
-        selected_idea_index = 1  # Default to first idea
+        selected_idea_index = 1
     
     selected_idea = workflow_state["content_ideas"][selected_idea_index - 1]
     analyzed_data = workflow_state["analyzed_data"]
     
-    # Generate 3 different LinkedIn posts
     posts = []
     
     # Post 1: Problem-Solution format
@@ -739,12 +626,7 @@ What's worked for you?"""
 
 @mcp.tool()
 def get_workflow_status() -> Dict[str, Any]:
-    """
-    Get the current status of the content generation workflow.
-    
-    Returns:
-        Dictionary containing current workflow state and progress
-    """
+    """Get the current status of the content generation workflow."""
     return {
         "current_niche": workflow_state.get("current_niche"),
         "selected_platform": workflow_state.get("selected_platform"),
@@ -754,7 +636,9 @@ def get_workflow_status() -> Dict[str, Any]:
         "hooks_selected": bool(workflow_state.get("selected_hooks")),
         "ideas_generated": len(workflow_state.get("content_ideas", [])),
         "posts_generated": len(workflow_state.get("generated_posts", [])),
-        "next_step": _get_next_step()
+        "next_step": _get_next_step(),
+        "apify_token_configured": bool(get_config()["APIFY_TOKEN"]),
+        "knowledge_base_loaded": _check_knowledge_base()
     }
 
 
@@ -778,53 +662,42 @@ def _get_next_step() -> str:
         return "Workflow complete! Posts generated successfully."
 
 
-def create_railway_app():
-    """Create Railway-compatible HTTP app using FastMCP's http_app method."""
+def _check_knowledge_base() -> bool:
+    """Check if knowledge base files exist."""
     config = get_config()
-    print(f"Creating Railway app...")
-    print(f"APIFY_TOKEN configured: {bool(config['APIFY_TOKEN'])}")
-    
     KNOWLEDGE_BASE_DIR = config["KNOWLEDGE_BASE_DIR"]
     HOOKS_FILE = KNOWLEDGE_BASE_DIR / "hooks.md"
     CONTENT_TEMPLATES_FILE = KNOWLEDGE_BASE_DIR / "content_templates.md"
-    
-    print(f"Knowledge base files exist: hooks={HOOKS_FILE.exists()}, templates={CONTENT_TEMPLATES_FILE.exists()}")
-    
-    # Get the HTTP app from FastMCP
-    app = mcp.http_app()
-    
-    # Add a health check route using Starlette routing
+    return HOOKS_FILE.exists() and CONTENT_TEMPLATES_FILE.exists()
+
+
+# Add Railway health check endpoint
+@mcp.custom_route("/health", methods=["GET"])
+def health_endpoint(request):
+    """Health check endpoint for Railway."""
     from starlette.responses import JSONResponse
-    from starlette.routing import Route
     
-    async def health_check(request):
-        return JSONResponse({
-            "status": "healthy",
-            "server": "LinkedIn Viral Content Generator MCP Server",
-            "apify_token_configured": bool(config['APIFY_TOKEN']),
-            "knowledge_base_loaded": HOOKS_FILE.exists() and CONTENT_TEMPLATES_FILE.exists(),
-            "transport": "http",
-            "mcp_endpoint": "/mcp"
-        })
-    
-    # Add the health route to the existing app
-    health_route = Route("/health", health_check, methods=["GET"])
-    app.routes.append(health_route)
-    
-    return app
+    config = get_config()
+    return JSONResponse({
+        "status": "healthy",
+        "server": "LinkedIn Viral Content Generator MCP Server",
+        "apify_token_configured": bool(config["APIFY_TOKEN"]),
+        "knowledge_base_loaded": _check_knowledge_base(),
+        "tools_count": 13,
+        "mcp_endpoint": "/mcp"
+    })
 
 
 if __name__ == "__main__":
-    # Support both stdio and HTTP transports
-    port = os.getenv("PORT")
+    port = int(os.getenv("PORT", 8000))
     
-    if port:
-        # Railway deployment - use HTTP app with uvicorn
-        print(f"Starting MCP server for Railway on port {port}")
-        import uvicorn
-        app = create_railway_app()
-        uvicorn.run(app, host="0.0.0.0", port=int(port))
-    else:
-        # Local development - use stdio transport
-        print("Starting MCP server with stdio transport")
-        mcp.run()
+    print(f"🚀 Starting LinkedIn Viral Content Generator MCP Server")
+    print(f"📍 Port: {port}")
+    print(f"🔑 APIFY_TOKEN: {'✅ Configured' if get_config()['APIFY_TOKEN'] else '❌ Missing'}")
+    print(f"📚 Knowledge Base: {'✅ Loaded' if _check_knowledge_base() else '❌ Missing'}")
+    print(f"🛠  Tools: 13 MCP tools available")
+    print(f"🌐 Health Check: /health")
+    print(f"🔗 MCP Endpoint: /mcp")
+    
+    # Start the server with proper Railway configuration
+    mcp.run(host="0.0.0.0", port=port, transport="http")
