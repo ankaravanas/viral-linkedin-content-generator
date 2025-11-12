@@ -22,50 +22,18 @@ def apify(actor: str, data: dict) -> dict:
     if not token or token == "your_apify_token_here":
         return {"error": "Please set your real APIFY_TOKEN in .env file"}
     
-    # Start the actor run
-    run_url = f"https://api.apify.com/v2/acts/{actor}/runs"
-    headers = {"Authorization": f"Bearer {token}"}
+    # Use FAST synchronous endpoint - no polling, immediate results
+    sync_url = f"https://api.apify.com/v2/acts/{actor}/run-sync-get-dataset-items"
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
     
     try:
-        # Start the run
-        response = requests.post(run_url, json=data, headers=headers)
-        if not response.ok:
-            return {"error": f"Failed to start actor: {response.text}"}
+        # This endpoint runs the actor and returns results immediately
+        response = requests.post(sync_url, json=data, headers=headers, timeout=60)
         
-        run_data = response.json()
-        run_id = run_data["data"]["id"]
-        
-        # Wait for completion
-        status_url = f"https://api.apify.com/v2/acts/{actor}/runs/{run_id}"
-        max_wait = 180  # 3 minutes max
-        wait_time = 0
-        
-        while wait_time < max_wait:
-            status_response = requests.get(status_url, headers=headers)
-            if not status_response.ok:
-                return {"error": f"Failed to check status: {status_response.text}"}
-            
-            status_data = status_response.json()
-            status = status_data["data"]["status"]
-            
-            if status == "SUCCEEDED":
-                # Get results
-                dataset_id = status_data["data"]["defaultDatasetId"]
-                dataset_url = f"https://api.apify.com/v2/datasets/{dataset_id}/items"
-                
-                dataset_response = requests.get(dataset_url, headers=headers)
-                if dataset_response.ok:
-                    return {"data": dataset_response.json()}
-                else:
-                    return {"error": f"Failed to get results: {dataset_response.text}"}
-            
-            elif status in ["FAILED", "ABORTED", "TIMED-OUT"]:
-                return {"error": f"Actor run failed with status: {status}"}
-            
-            time.sleep(10)
-            wait_time += 10
-        
-        return {"error": "Actor run timed out"}
+        if response.ok:
+            return {"data": response.json()}
+        else:
+            return {"error": f"Actor failed {response.status_code}: {response.text[:200]}"}
         
     except Exception as e:
         return {"error": str(e)}
