@@ -535,10 +535,10 @@ def extract_content_insights(text: str) -> Dict[str, Any]:
     import re
     
     # Find percentages
-    percentages = re.findall(r'\b\d+%\b', text)
+    percentages = re.findall(r'\b\d+%', text)
     
     # Find other numbers with context
-    number_patterns = re.findall(r'\b\d+[xX]?\s*(?:times|more|less|increase|decrease|growth|roi|conversion)\b', text, re.IGNORECASE)
+    number_patterns = re.findall(r'\b\d+[xX]?\s*(?:times|more|less|increase|decrease|growth|roi|conversion|days|months|years)\b', text, re.IGNORECASE)
     
     # Find dollar amounts
     dollar_amounts = re.findall(r'\$[\d,]+(?:\.\d{2})?', text)

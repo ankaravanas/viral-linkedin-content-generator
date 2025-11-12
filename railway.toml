@@ -1,6 +1,0 @@
-[build]
-builder = "nixpacks"
-
-[deploy]
-# Use HTTP wrapper for Railway deployment testing
-startCommand = "python http_wrapper.py"
