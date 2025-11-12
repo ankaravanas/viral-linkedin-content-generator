@@ -579,8 +579,14 @@ if __name__ == "__main__":
     print("📊 Complete workflow: Discovery → Analysis → LinkedIn Posts")
     print("🔧 Tools: 11 MCP tools for viral content creation")
     print("📚 Knowledge Base: Hooks + Templates loaded")
-    print("🔗 MCP Endpoint: /mcp")
-    print()
     
-    # Run MCP server
-    mcp.run()
+    # Check if running on Railway (has PORT environment variable)
+    port = os.getenv("PORT")
+    
+    if port:
+        print(f"🌐 Railway deployment mode - HTTP transport on port {port}")
+        print(f"🔗 MCP Endpoint: /mcp")
+        mcp.run(transport="http", host="0.0.0.0", port=int(port))
+    else:
+        print("🔗 Local development mode - stdio transport")
+        mcp.run()
