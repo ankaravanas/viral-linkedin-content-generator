@@ -419,4 +419,13 @@ def status() -> dict:
     }
 
 if __name__ == "__main__":
-    mcp.run()
+    port = os.getenv("PORT")
+    
+    if port:
+        # Railway deployment - HTTP transport
+        print(f"🌐 Railway mode: HTTP transport on port {port}")
+        mcp.run(transport="http", host="0.0.0.0", port=int(port))
+    else:
+        # Local development - stdio transport  
+        print("🔗 Local mode: stdio transport")
+        mcp.run()
