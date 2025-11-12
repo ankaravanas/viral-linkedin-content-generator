@@ -769,8 +769,6 @@ def _get_next_step() -> str:
 
 
 if __name__ == "__main__":
-    # Get port from environment variable for Railway deployment
-    port = int(os.getenv("PORT", 8000))
-    
-    # Run the MCP server
-    mcp.run(host="0.0.0.0", port=port)
+    # MCP servers use stdio transport, not HTTP
+    # Run the MCP server with default stdio transport
+    mcp.run()

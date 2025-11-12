@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "viral-linkedin-content-generator": {
+      "command": "python",
+      "args": ["server.py"],
+      "env": {
+        "APIFY_TOKEN": "${APIFY_TOKEN}"
+      }
+    }
+  }
+}

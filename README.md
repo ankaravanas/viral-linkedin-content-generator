@@ -1,8 +1,10 @@
 # LinkedIn Viral Content Generator MCP Server
 
-A minimal FastMCP server that integrates with Apify actors to scrape social media content and generate viral LinkedIn posts using hook templates and content patterns.
+A FastMCP server that integrates with Apify actors to scrape social media content and generate viral LinkedIn posts using hook templates and content patterns.
 
-## Setup
+## 🚀 Quick Start
+
+### Local Development
 
 1. **Install Dependencies**
    ```bash
@@ -20,30 +22,76 @@ A minimal FastMCP server that integrates with Apify actors to scrape social medi
    python server.py
    ```
 
-## Features
+### 🔌 MCP Client Connection
+
+**IMPORTANT**: This is an MCP (Model Context Protocol) server, NOT an HTTP API server.
+
+#### For Claude Desktop / MCP Clients:
+
+Add to your MCP client configuration (e.g., `claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "viral-linkedin-content-generator": {
+      "command": "python",
+      "args": ["path/to/server.py"],
+      "env": {
+        "APIFY_TOKEN": "your_apify_token_here"
+      }
+    }
+  }
+}
+```
+
+#### For Railway Deployment:
+
+The server is deployed as a worker process on Railway. To connect:
+
+1. **Set Environment Variables** in Railway:
+   - `APIFY_TOKEN`: Your Apify API token
+
+2. **Connection**: MCP servers use stdio transport - they cannot be accessed via HTTP URLs like `https://domain.com/mcp`
+
+## ✨ Features
 
 - **Multi-platform scraping**: YouTube, TikTok, Instagram, LinkedIn via Apify actors
+- **385+ Hook Templates**: Comprehensive LinkedIn hook library across 14 categories
 - **Content analysis**: Extract key metrics, insights, and engagement patterns
-- **Hook matching**: Intelligent selection from knowledge base templates
-- **Post generation**: Automated LinkedIn content creation using proven templates
+- **Intelligent hook matching**: AI-powered selection from knowledge base
+- **Automated post generation**: Create viral LinkedIn content using proven templates
 
-## Workflow
+## 🔄 Workflow
 
-1. Topic discovery and niche selection
-2. Platform selection (YouTube/TikTok/Instagram/LinkedIn)
-3. Content discovery and video selection
-4. Comment/engagement analysis
-5. Transcript/content analysis
-6. Hook framework selection from knowledge base
-7. Content formulation and approval
-8. LinkedIn post generation using templates
+1. **Topic Discovery**: `start_content_discovery(niche, platform)`
+2. **Content Scraping**: Platform-specific scraping tools
+3. **Content Selection**: `select_content(index)`
+4. **Engagement Analysis**: `analyze_comments()`
+5. **Content Analysis**: `analyze_content_transcript()`
+6. **Hook Selection**: `select_hooks([indices])`
+7. **Idea Generation**: `generate_content_ideas()`
+8. **Post Creation**: `generate_linkedin_posts()`
 
-## Knowledge Base
+## 📚 Knowledge Base
 
-Update the files in `knowledge_base/` with your hook templates and content patterns:
-- `hooks.md`: LinkedIn hook examples
-- `content_templates.md`: Post template structures
+- **`hooks.md`**: 385+ LinkedIn hook templates across 14 categories
+- **`content_templates.md`**: Detailed post templates with proven copywriting formulas
 
-## Deployment
+## 🛠 Available Tools
 
-Ready for Railway deployment with minimal configuration required.
+- `start_content_discovery()` - Initialize workflow
+- `scrape_youtube_videos()` - YouTube content discovery
+- `scrape_tiktok_videos()` - TikTok content discovery  
+- `scrape_instagram_posts()` - Instagram content discovery
+- `scrape_linkedin_posts()` - LinkedIn content discovery
+- `select_content()` - Choose content for analysis
+- `analyze_comments()` - Extract engagement insights
+- `analyze_content_transcript()` - Content analysis
+- `select_hooks()` - Hook selection from knowledge base
+- `generate_content_ideas()` - Create content concepts
+- `generate_linkedin_posts()` - Generate final LinkedIn posts
+- `get_workflow_status()` - Track progress
+
+## 🚂 Railway Deployment
+
+This server is configured for Railway deployment as a worker process. It uses stdio transport for MCP communication, not HTTP endpoints.
