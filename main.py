@@ -154,13 +154,36 @@ def health_check() -> Dict[str, Any]:
     }
 
 
+# Add a simple root endpoint for Railway health check
+@app.custom_route("/", methods=["GET"])
+def root_health_check(request):
+    """Simple root endpoint for Railway health check."""
+    return {
+        "status": "healthy",
+        "server": "LinkedIn Viral Content Generator MCP Server",
+        "mcp_endpoint": "/mcp",
+        "apify_configured": bool(APIFY_TOKEN)
+    }
+
+
 if __name__ == "__main__":
     # Simple server startup for Railway
     port = int(os.getenv("PORT", 8000))
     
-    print(f"Starting MCP server on port {port}")
+    print(f"=== STARTING MCP SERVER ===")
+    print(f"Port: {port}")
+    print(f"Host: 0.0.0.0")
     print(f"APIFY_TOKEN configured: {bool(APIFY_TOKEN)}")
     print(f"Knowledge base loaded: {HOOKS_FILE.exists() and CONTENT_TEMPLATES_FILE.exists()}")
+    print(f"Transport: http")
+    print(f"Expected endpoint: /mcp")
+    print(f"=== SERVER STARTING ===")
     
-    # Use FastMCP's built-in server
-    app.run(host="0.0.0.0", port=port, transport="http")
+    try:
+        # Use FastMCP's built-in server
+        app.run(host="0.0.0.0", port=port, transport="http")
+    except Exception as e:
+        print(f"ERROR starting server: {e}")
+        import traceback
+        traceback.print_exc()
+        raise
