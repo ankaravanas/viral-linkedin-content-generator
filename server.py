@@ -778,6 +778,9 @@ if __name__ == "__main__":
     if port:
         # Railway deployment - use HTTP transport
         print(f"Starting MCP server on HTTP port {port}")
+        print(f"APIFY_TOKEN configured: {bool(APIFY_TOKEN)}")
+        print(f"Knowledge base files exist: hooks={HOOKS_FILE.exists()}, templates={CONTENT_TEMPLATES_FILE.exists()}")
+        
         mcp.run(transport="http", host="0.0.0.0", port=int(port))
     else:
         # Local development - use stdio transport
