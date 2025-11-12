@@ -4,6 +4,7 @@
 import os
 import requests
 import re
+import time
 from typing import Dict, List
 from pathlib import Path
 from fastmcp import FastMCP
@@ -16,15 +17,56 @@ mcp = FastMCP("LinkedIn Content Generator")
 state = {}
 
 def apify(actor: str, data: dict) -> dict:
-    """Call Apify actor"""
+    """Call Apify actor with proper API format"""
     token = os.getenv("APIFY_TOKEN")
-    if not token:
-        return {"error": "APIFY_TOKEN required"}
+    if not token or token == "your_apify_token_here":
+        return {"error": "Please set your real APIFY_TOKEN in .env file"}
     
-    url = f"https://api.apify.com/v2/acts/{actor}/run-sync-get-dataset-items"
+    # Start the actor run
+    run_url = f"https://api.apify.com/v2/acts/{actor}/runs"
+    headers = {"Authorization": f"Bearer {token}"}
+    
     try:
-        response = requests.post(url, json=data, headers={"Authorization": f"Bearer {token}"}, timeout=300)
-        return {"data": response.json()} if response.ok else {"error": response.text}
+        # Start the run
+        response = requests.post(run_url, json=data, headers=headers)
+        if not response.ok:
+            return {"error": f"Failed to start actor: {response.text}"}
+        
+        run_data = response.json()
+        run_id = run_data["data"]["id"]
+        
+        # Wait for completion
+        status_url = f"https://api.apify.com/v2/acts/{actor}/runs/{run_id}"
+        max_wait = 180  # 3 minutes max
+        wait_time = 0
+        
+        while wait_time < max_wait:
+            status_response = requests.get(status_url, headers=headers)
+            if not status_response.ok:
+                return {"error": f"Failed to check status: {status_response.text}"}
+            
+            status_data = status_response.json()
+            status = status_data["data"]["status"]
+            
+            if status == "SUCCEEDED":
+                # Get results
+                dataset_id = status_data["data"]["defaultDatasetId"]
+                dataset_url = f"https://api.apify.com/v2/datasets/{dataset_id}/items"
+                
+                dataset_response = requests.get(dataset_url, headers=headers)
+                if dataset_response.ok:
+                    return {"data": dataset_response.json()}
+                else:
+                    return {"error": f"Failed to get results: {dataset_response.text}"}
+            
+            elif status in ["FAILED", "ABORTED", "TIMED-OUT"]:
+                return {"error": f"Actor run failed with status: {status}"}
+            
+            time.sleep(10)
+            wait_time += 10
+        
+        return {"error": "Actor run timed out"}
+        
     except Exception as e:
         return {"error": str(e)}
 
@@ -60,7 +102,7 @@ def youtube(query: str) -> dict:
     Discover YouTube videos for content analysis.
     Analyzes videos based on view count, engagement, and viral patterns.
     """
-    result = apify("streamers/youtube-scraper", {
+    result = apify("streamers~youtube-scraper", {
         "searchQueries": [query],
         "maxResults": 5,
         "downloadSubtitles": True,
@@ -100,7 +142,7 @@ def tiktok(hashtag: str) -> dict:
     Discover TikTok videos for content analysis.
     Focuses on high engagement rate and viral patterns (15-60 second videos).
     """
-    result = apify("clockworks/tiktok-scraper", {
+    result = apify("clockworks~tiktok-scraper", {
         "hashtags": [hashtag],
         "resultsPerPage": 15,
         "shouldDownloadCovers": False,
@@ -147,7 +189,7 @@ def tiktok(hashtag: str) -> dict:
 @mcp.tool()
 def instagram(username: str) -> dict:
     """Scrape Instagram"""
-    result = apify("apify/instagram-scraper", {"usernames": [username], "resultsLimit": 10})
+    result = apify("apify~instagram-scraper", {"usernames": [username], "resultsLimit": 10})
     if "data" in result:
         state["content"] = result["data"][:5]
         return {"posts": [{"i": i+1, "caption": p.get("caption", "")[:50], "likes": p.get("likesCount", 0)} 
@@ -157,7 +199,7 @@ def instagram(username: str) -> dict:
 @mcp.tool()
 def linkedin(profile_url: str) -> dict:
     """Scrape LinkedIn"""
-    result = apify("apimaestro/linkedin-profile-posts", {"profileUrl": profile_url})
+    result = apify("apimaestro~linkedin-profile-posts", {"profileUrl": profile_url})
     if "data" in result:
         state["content"] = result["data"][:5]
         return {"posts": [{"i": i+1, "text": p.get("text", "")[:50], "likes": p.get("numLikes", 0)} 
@@ -254,13 +296,13 @@ def comments() -> dict:
     
     # Scrape comments based on platform
     if platform == "youtube":
-        result = apify("streamers/youtube-comments-scraper", {"videoURLs": [url]})
+        result = apify("streamers~youtube-comments-scraper", {"videoURLs": [url]})
     elif platform == "tiktok":
-        result = apify("clockworks/tiktok-comments-scraper", {"postURLs": [url], "commentsPerPost": 100})
+        result = apify("clockworks~tiktok-comments-scraper", {"postURLs": [url], "commentsPerPost": 100})
     elif platform == "instagram":
-        result = apify("apify/instagram-comment-scraper", {"postUrls": [url]})
+        result = apify("apify~instagram-comment-scraper", {"postUrls": [url]})
     elif platform == "linkedin":
-        result = apify("apimaestro/linkedin-post-comments-replies-engagements-scraper-no-cookies", {"postUrls": [url]})
+        result = apify("apimaestro~linkedin-post-comments-replies-engagements-scraper-no-cookies", {"postUrls": [url]})
     else:
         return {"error": f"Comments not supported for {platform}"}
     
