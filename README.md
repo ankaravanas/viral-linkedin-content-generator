@@ -74,13 +74,13 @@ python3 server.py
 
 #### HTTP Testing (SSE transport):
 ```bash
-# Test with HTTP/SSE transport
+# Test with HTTP transport
 PORT=8000 python3 server.py
-# Server will be available at http://localhost:8000/sse
+# Server will be available at http://localhost:8000/mcp
 
 # Test with FastMCP Inspector
 npx @mcpjam/inspector@latest
-# Connect to http://localhost:8000/sse in the Inspector UI
+# Connect to http://localhost:8000/mcp in the Inspector UI
 ```
 
 ## ✨ Features

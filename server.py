@@ -778,7 +778,7 @@ if __name__ == "__main__":
     if port:
         # Railway deployment - use HTTP transport
         print(f"Starting MCP server on HTTP port {port}")
-        mcp.run(transport="sse", host="0.0.0.0", port=int(port))
+        mcp.run(transport="http", host="0.0.0.0", port=int(port))
     else:
         # Local development - use stdio transport
         print("Starting MCP server with stdio transport")
