@@ -1,0 +1,31 @@
+
+
+╭──────────────────────────────────────────────────────────────────────────────╮
+│                                                                              │
+│                         ▄▀▀ ▄▀█ █▀▀ ▀█▀ █▀▄▀█ █▀▀ █▀█                        │
+│                         █▀  █▀█ ▄▄█  █  █ ▀ █ █▄▄ █▀▀                        │
+│                                                                              │
+│                               FastMCP 2.13.0.2                               │
+│                                                                              │
+│                                                                              │
+│               🖥  Server name: LinkedIn Viral Content Generator               │
+│                                                                              │
+│               📦 Transport:   SSE                                            │
+│               🔗 Server URL:  http://0.0.0.0:8000/sse                        │
+│                                                                              │
+│               📚 Docs:        https://gofastmcp.com                          │
+│               🚀 Hosting:     https://fastmcp.cloud                          │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+
+[11/12/25 15:17:15] INFO     Starting MCP server 'LinkedIn Viral  server.py:2050
+                             Content Generator' with transport                  
+                             'sse' on http://0.0.0.0:8000/sse                   
+INFO:     Started server process [30884]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+ERROR:    [Errno 48] error while attempting to bind on address ('0.0.0.0', 8000): [errno 48] address already in use
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+Starting MCP server on HTTP port 8000

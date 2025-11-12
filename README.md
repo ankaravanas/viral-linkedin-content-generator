@@ -60,12 +60,27 @@ Use these connection parameters:
 
 ### 🧪 Test the Server
 
+#### Local Testing (stdio transport):
 ```bash
 # Test server import and basic functionality
 python3 -c "import server; print('✅ Server loads successfully')"
 
 # Test knowledge base loading
 python3 -c "import server; kb = server.load_knowledge_base(); print(f'✅ Knowledge base loaded: {len(kb[\"hooks\"])} chars hooks, {len(kb[\"content_templates\"])} chars templates')"
+
+# Run server locally
+python3 server.py
+```
+
+#### HTTP Testing (SSE transport):
+```bash
+# Test with HTTP/SSE transport
+PORT=8000 python3 server.py
+# Server will be available at http://localhost:8000/sse
+
+# Test with FastMCP Inspector
+npx @mcpjam/inspector@latest
+# Connect to http://localhost:8000/sse in the Inspector UI
 ```
 
 ## ✨ Features
