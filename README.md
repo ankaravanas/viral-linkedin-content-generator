@@ -1,47 +1,40 @@
 # LinkedIn Viral Content Generator MCP Server
 
-A FastMCP server that integrates with Apify actors to scrape social media content and generate viral LinkedIn posts using hook templates and content patterns.
+Transform social media insights into viral LinkedIn posts using AI-powered content analysis.
 
 ## 🚀 Quick Start
 
-### Prerequisites
-
-- Python 3.8+
-- Apify API token (get one at [apify.com](https://apify.com))
-
 ### Installation
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/ankaravanas/viral-linkedin-content-generator.git
-   cd viral-linkedin-content-generator
-   ```
+```bash
+git clone https://github.com/ankaravanas/viral-linkedin-content-generator.git
+cd viral-linkedin-content-generator
+pip install -r requirements.txt
+```
 
-2. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
+### Environment Setup
 
-3. **Configure environment**
-   ```bash
-   cp .env.example .env
-   # Edit .env and add your APIFY_TOKEN
-   ```
+```bash
+cp .env.example .env
+# Edit .env and add your APIFY_TOKEN
+```
 
-### 🔌 MCP Client Connection
+### Run the Server
 
-**IMPORTANT**: This is an MCP (Model Context Protocol) server that uses stdio transport.
+```bash
+python linkedin_mcp.py
+```
 
-#### For Claude Desktop
+## 🔌 MCP Client Connection
 
-Add to your Claude Desktop configuration file (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
+Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json`):
 
 ```json
 {
   "mcpServers": {
-    "viral-linkedin-content-generator": {
+    "linkedin-content-generator": {
       "command": "python3",
-      "args": ["/absolute/path/to/viral-linkedin-content-generator/server.py"],
+      "args": ["/absolute/path/to/viral-linkedin-content-generator/linkedin_mcp.py"],
       "env": {
         "APIFY_TOKEN": "your_apify_token_here"
       }
@@ -50,135 +43,86 @@ Add to your Claude Desktop configuration file (`~/Library/Application Support/Cl
 }
 ```
 
-#### For Other MCP Clients
-
-Use these connection parameters:
-- **Command**: `python3`
-- **Args**: `["/path/to/server.py"]`
-- **Environment**: `{"APIFY_TOKEN": "your_token"}`
-- **Transport**: stdio (default)
-
-### 🧪 Test the Server
-
-#### Local Testing (stdio transport):
-```bash
-# Test server import and basic functionality
-python3 -c "import server; print('✅ Server loads successfully')"
-
-# Test knowledge base loading
-python3 -c "import server; kb = server.load_knowledge_base(); print(f'✅ Knowledge base loaded: {len(kb[\"hooks\"])} chars hooks, {len(kb[\"content_templates\"])} chars templates')"
-
-# Run server locally
-python3 server.py
-```
-
-#### HTTP Testing (SSE transport):
-```bash
-# Test with HTTP transport
-PORT=8000 python3 server.py
-# Server will be available at http://localhost:8000/mcp
-
-# Test with official MCP Inspector
-npx @modelcontextprotocol/inspector
-# Inspector will launch at http://localhost:6274/
-# Use HTTP transport to connect to http://localhost:8000/mcp
-```
-
-## ✨ Features
-
-- **Multi-platform scraping**: YouTube, TikTok, Instagram, LinkedIn via Apify actors
-- **385+ Hook Templates**: Comprehensive LinkedIn hook library across 14 categories
-- **Content analysis**: Extract key metrics, insights, and engagement patterns
-- **Intelligent hook matching**: AI-powered selection from knowledge base
-- **Automated post generation**: Create viral LinkedIn content using proven templates
-
-## 🔄 Workflow
-
-The server provides a complete 8-step workflow:
-
-1. **Topic Discovery**: `start_content_discovery(niche, platform)`
-2. **Content Scraping**: Platform-specific scraping tools
-3. **Content Selection**: `select_content(index)`
-4. **Engagement Analysis**: `analyze_comments()`
-5. **Content Analysis**: `analyze_content_transcript()`
-6. **Hook Selection**: `select_hooks([indices])`
-7. **Idea Generation**: `generate_content_ideas()`
-8. **Post Creation**: `generate_linkedin_posts()`
-
-## 🛠 Available MCP Tools
+## 🛠 Available Tools
 
 ### Content Discovery
 - `start_content_discovery(niche, platform)` - Initialize workflow
-- `get_workflow_status()` - Track progress
-
-### Platform Scraping
-- `scrape_youtube_videos(search_query, max_results=5)` - YouTube content discovery
-- `scrape_tiktok_videos(hashtag, results_per_page=15)` - TikTok content discovery  
-- `scrape_instagram_posts(username, results_limit=12)` - Instagram content discovery
-- `scrape_linkedin_posts(profile_url)` - LinkedIn content discovery
+- `scrape_youtube(search_query, max_results=5)` - YouTube content research
+- `scrape_tiktok(hashtag, max_results=10)` - TikTok content research
+- `scrape_instagram(username, max_posts=12)` - Instagram content research
+- `scrape_linkedin(profile_url)` - LinkedIn content research
 
 ### Content Analysis
 - `select_content(index)` - Choose content for analysis
-- `analyze_comments()` - Extract engagement insights
-- `analyze_content_transcript()` - Content analysis
+- `analyze_selected_content()` - Extract insights and metrics
+- `analyze_engagement()` - Analyze comments and engagement
 
-### Content Generation
-- `select_hooks(hook_indices)` - Hook selection from knowledge base
+### LinkedIn Post Generation
 - `generate_content_ideas()` - Create content concepts
-- `generate_linkedin_posts(selected_idea_index=1)` - Generate final LinkedIn posts
+- `create_linkedin_posts(idea_index=1)` - Generate final LinkedIn posts
+- `get_workflow_status()` - Track workflow progress
+
+## 🔄 Complete Workflow
+
+```python
+# 1. Start discovery
+start_content_discovery("AI automation", "youtube")
+
+# 2. Find content
+scrape_youtube("AI automation tools")
+
+# 3. Select content
+select_content(1)  # Choose first video
+
+# 4. Analyze content
+analyze_selected_content()
+
+# 5. Analyze engagement (optional)
+analyze_engagement()
+
+# 6. Generate ideas
+generate_content_ideas()
+
+# 7. Create LinkedIn posts
+create_linkedin_posts()
+
+# 8. Check status anytime
+get_workflow_status()
+```
 
 ## 📚 Knowledge Base
 
 The server includes comprehensive templates:
 
 - **`knowledge_base/hooks.md`**: 385+ LinkedIn hook templates across 14 categories
-  - Carousel, Story, Viral, Creative, Image, Funny
-  - Success, Mistake, Polarising, Question, Pain Point
-  - Desire, Fear-based, Shocking, Conflict, and more
+- **`knowledge_base/content_templates.md`**: Detailed post templates with copywriting formulas
 
-- **`knowledge_base/content_templates.md`**: Detailed post templates with proven copywriting formulas
-  - AIDA framework, pain point addressing, engagement strategies
+## ✨ Features
 
-## 🎯 Example Usage
+- **Multi-platform scraping** via Apify actors (YouTube, TikTok, Instagram, LinkedIn)
+- **Intelligent content analysis** with metrics extraction
+- **Hook template matching** from comprehensive knowledge base
+- **Automated LinkedIn post generation** with proven formats
+- **Complete workflow tracking** from discovery to publication
 
-Once connected via MCP client:
+## 🧪 Testing
 
-```
-1. start_content_discovery("AI automation tools", "youtube")
-2. scrape_youtube_videos("AI automation tools")
-3. select_content(1)  # Choose first video
-4. analyze_comments()
-5. analyze_content_transcript()
-6. select_hooks([1, 2, 3])  # Choose hooks
-7. generate_content_ideas()
-8. generate_linkedin_posts()
-```
-
-## 🔧 Troubleshooting
-
-### Common Issues
-
-1. **Import Error**: Make sure you're using Python 3.8+ and have installed dependencies
-2. **APIFY_TOKEN Error**: Ensure your Apify token is set in the environment
-3. **MCP Connection**: Verify you're using the correct absolute path in MCP client config
-
-### Debug Commands
+Test with the official MCP Inspector:
 
 ```bash
-# Test FastMCP import
-python3 -c "from fastmcp import FastMCP; print('✅ FastMCP working')"
-
-# Test server import
-python3 -c "import server; print('✅ Server working')"
-
-# Check knowledge base
-python3 -c "import server; kb = server.load_knowledge_base(); print('Hooks:', len(kb['hooks']), 'Templates:', len(kb['content_templates']))"
+npx @modelcontextprotocol/inspector
+# Connect to your local server via stdio transport
 ```
+
+## 🎯 Example Output
+
+The server generates 3 LinkedIn posts in different formats:
+1. **Problem-Solution** format with data insights
+2. **Story-driven** format with personal experience
+3. **Contrarian** format with bold opinions
+
+All posts are optimized for LinkedIn engagement and include calls-to-action.
 
 ## 📄 License
 
-This project is licensed under the MIT License.
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
+MIT License

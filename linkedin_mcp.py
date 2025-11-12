@@ -1,0 +1,586 @@
+#!/usr/bin/env python3
+"""
+LinkedIn Viral Content Generator MCP Server
+Complete workflow: Content Discovery → Analysis → LinkedIn Post Generation
+"""
+
+import os
+import json
+import requests
+import time
+import re
+from typing import Dict, List, Any
+from pathlib import Path
+from fastmcp import FastMCP
+from dotenv import load_dotenv
+
+# Load environment
+load_dotenv()
+
+# Create MCP server
+mcp = FastMCP("LinkedIn Viral Content Generator")
+
+# Workflow state
+workflow = {
+    "niche": None,
+    "platform": None, 
+    "discovered_content": [],
+    "selected_content": None,
+    "analysis": {},
+    "content_ideas": [],
+    "generated_posts": []
+}
+
+def call_apify(actor: str, input_data: dict) -> dict:
+    """Call Apify actor and return results"""
+    token = os.getenv("APIFY_TOKEN")
+    if not token:
+        return {"error": "APIFY_TOKEN not configured"}
+    
+    url = f"https://api.apify.com/v2/acts/{actor}/run-sync-get-dataset-items"
+    headers = {"Authorization": f"Bearer {token}"}
+    
+    try:
+        response = requests.post(url, json=input_data, headers=headers, timeout=300)
+        response.raise_for_status()
+        return {"success": True, "data": response.json()}
+    except Exception as e:
+        return {"error": str(e)}
+
+def load_hooks() -> str:
+    """Load LinkedIn hooks from knowledge base"""
+    hooks_file = Path(__file__).parent / "knowledge_base" / "hooks.md"
+    if hooks_file.exists():
+        return hooks_file.read_text(encoding="utf-8")
+    return ""
+
+def load_templates() -> str:
+    """Load content templates from knowledge base"""
+    templates_file = Path(__file__).parent / "knowledge_base" / "content_templates.md"
+    if templates_file.exists():
+        return templates_file.read_text(encoding="utf-8")
+    return ""
+
+def extract_metrics(text: str) -> List[str]:
+    """Extract quantitative metrics from text"""
+    # Find percentages, dollar amounts, multipliers, timeframes
+    patterns = [
+        r'\b\d+%',  # percentages
+        r'\$[\d,]+(?:\.\d{2})?',  # dollar amounts
+        r'\b\d+[xX]',  # multipliers
+        r'\b\d+\s*(?:days?|weeks?|months?|years?)',  # timeframes
+        r'\b\d+\s*(?:times?|more|less|increase|decrease|growth|boost)'  # growth terms
+    ]
+    
+    metrics = []
+    for pattern in patterns:
+        metrics.extend(re.findall(pattern, text, re.IGNORECASE))
+    
+    return list(set(metrics))[:5]  # Return top 5 unique metrics
+
+def analyze_comments(comments: List[dict]) -> dict:
+    """Analyze comments for insights"""
+    if not comments:
+        return {"error": "No comments to analyze"}
+    
+    # Extract comment texts
+    texts = []
+    for comment in comments:
+        text = comment.get("text", "") or comment.get("comment", "") or comment.get("content", "")
+        if text:
+            texts.append(text.lower())
+    
+    # Find pain points and questions
+    pain_keywords = ["problem", "issue", "difficult", "hard", "struggle", "can't", "doesn't work"]
+    question_words = ["how", "what", "why", "when", "where"]
+    
+    pain_points = []
+    questions = []
+    
+    for text in texts:
+        if any(keyword in text for keyword in pain_keywords):
+            pain_points.append(text[:100])
+        if any(word in text for word in question_words) and "?" in text:
+            questions.append(text[:100])
+    
+    return {
+        "total_comments": len(texts),
+        "pain_points": pain_points[:3],
+        "common_questions": questions[:3],
+        "engagement_level": "high" if len(texts) > 50 else "medium" if len(texts) > 10 else "low"
+    }
+
+# === MCP TOOLS ===
+
+@mcp.tool()
+def start_content_discovery(niche: str, platform: str) -> str:
+    """
+    Start the LinkedIn content generation workflow.
+    
+    Args:
+        niche: Content niche (e.g., "AI automation", "productivity", "marketing")
+        platform: Platform to research ("youtube", "tiktok", "instagram", "linkedin")
+    
+    Returns:
+        Confirmation message
+    """
+    workflow["niche"] = niche
+    workflow["platform"] = platform.lower()
+    workflow["discovered_content"] = []
+    workflow["selected_content"] = None
+    workflow["analysis"] = {}
+    workflow["content_ideas"] = []
+    workflow["generated_posts"] = []
+    
+    return f"✅ Started content discovery for '{niche}' on {platform}. Next: Use scrape_{platform}() to find content."
+
+@mcp.tool()
+def scrape_youtube(search_query: str, max_results: int = 5) -> dict:
+    """
+    Scrape YouTube videos for content research.
+    
+    Args:
+        search_query: What to search for on YouTube
+        max_results: Number of videos to return (default: 5)
+    
+    Returns:
+        List of YouTube videos with titles, views, URLs
+    """
+    result = call_apify("streamers/youtube-scraper", {
+        "searchQueries": [search_query],
+        "maxResults": max_results,
+        "downloadSubtitles": True,
+        "preferAutoGeneratedSubtitles": True
+    })
+    
+    if result.get("success"):
+        workflow["discovered_content"] = result["data"][:max_results]
+        
+        videos = []
+        for i, video in enumerate(workflow["discovered_content"], 1):
+            videos.append({
+                "index": i,
+                "title": video.get("title", "No title"),
+                "channel": video.get("channelName", "Unknown"),
+                "views": video.get("viewCount", 0),
+                "url": video.get("url", "")
+            })
+        
+        return {
+            "status": "success",
+            "videos": videos,
+            "next_step": "Use select_content(index) to choose a video for analysis"
+        }
+    
+    return {"status": "error", "error": result.get("error", "Unknown error")}
+
+@mcp.tool()
+def scrape_tiktok(hashtag: str, max_results: int = 10) -> dict:
+    """
+    Scrape TikTok videos for content research.
+    
+    Args:
+        hashtag: TikTok hashtag to search (without #)
+        max_results: Number of videos to return (default: 10)
+    
+    Returns:
+        List of TikTok videos with text, plays, likes
+    """
+    result = call_apify("clockworks/tiktok-scraper", {
+        "hashtags": [hashtag],
+        "resultsPerPage": max_results,
+        "shouldDownloadSubtitles": True
+    })
+    
+    if result.get("success"):
+        workflow["discovered_content"] = result["data"][:5]
+        
+        videos = []
+        for i, video in enumerate(workflow["discovered_content"], 1):
+            videos.append({
+                "index": i,
+                "text": video.get("text", "No description")[:100] + "...",
+                "author": video.get("authorMeta", {}).get("name", "Unknown"),
+                "plays": video.get("playCount", 0),
+                "likes": video.get("diggCount", 0)
+            })
+        
+        return {
+            "status": "success", 
+            "videos": videos,
+            "next_step": "Use select_content(index) to choose a video for analysis"
+        }
+    
+    return {"status": "error", "error": result.get("error", "Unknown error")}
+
+@mcp.tool()
+def scrape_instagram(username: str, max_posts: int = 12) -> dict:
+    """
+    Scrape Instagram posts for content research.
+    
+    Args:
+        username: Instagram username (without @)
+        max_posts: Number of posts to return (default: 12)
+    
+    Returns:
+        List of Instagram posts with captions, likes, comments
+    """
+    result = call_apify("apify/instagram-scraper", {
+        "usernames": [username],
+        "resultsLimit": max_posts
+    })
+    
+    if result.get("success"):
+        workflow["discovered_content"] = result["data"][:5]
+        
+        posts = []
+        for i, post in enumerate(workflow["discovered_content"], 1):
+            posts.append({
+                "index": i,
+                "caption": post.get("caption", "No caption")[:100] + "...",
+                "likes": post.get("likesCount", 0),
+                "comments": post.get("commentsCount", 0),
+                "url": post.get("url", "")
+            })
+        
+        return {
+            "status": "success",
+            "posts": posts,
+            "next_step": "Use select_content(index) to choose a post for analysis"
+        }
+    
+    return {"status": "error", "error": result.get("error", "Unknown error")}
+
+@mcp.tool()
+def scrape_linkedin(profile_url: str) -> dict:
+    """
+    Scrape LinkedIn posts for content research.
+    
+    Args:
+        profile_url: Full LinkedIn profile URL
+    
+    Returns:
+        List of LinkedIn posts with text, likes, comments
+    """
+    result = call_apify("apimaestro/linkedin-profile-posts", {
+        "profileUrl": profile_url
+    })
+    
+    if result.get("success"):
+        workflow["discovered_content"] = result["data"][:5]
+        
+        posts = []
+        for i, post in enumerate(workflow["discovered_content"], 1):
+            posts.append({
+                "index": i,
+                "text": post.get("text", "No text")[:100] + "...",
+                "likes": post.get("numLikes", 0),
+                "comments": post.get("numComments", 0),
+                "reposts": post.get("numReposts", 0)
+            })
+        
+        return {
+            "status": "success",
+            "posts": posts,
+            "next_step": "Use select_content(index) to choose a post for analysis"
+        }
+    
+    return {"status": "error", "error": result.get("error", "Unknown error")}
+
+@mcp.tool()
+def select_content(index: int) -> str:
+    """
+    Select a piece of content for detailed analysis.
+    
+    Args:
+        index: Index of content to select (1-based)
+    
+    Returns:
+        Confirmation message
+    """
+    if not workflow["discovered_content"]:
+        return "❌ No content discovered yet. Please scrape content first."
+    
+    if index < 1 or index > len(workflow["discovered_content"]):
+        return f"❌ Invalid index. Choose between 1 and {len(workflow['discovered_content'])}"
+    
+    workflow["selected_content"] = workflow["discovered_content"][index - 1]
+    
+    # Get title/text for confirmation
+    title = (workflow["selected_content"].get("title") or 
+             workflow["selected_content"].get("text", "")[:50] or 
+             workflow["selected_content"].get("caption", "")[:50] or 
+             "Selected content")
+    
+    return f"✅ Selected: {title}...\n\nNext: Use analyze_selected_content() to extract insights."
+
+@mcp.tool()
+def analyze_selected_content() -> dict:
+    """
+    Analyze the selected content for insights and metrics.
+    
+    Returns:
+        Analysis results with metrics, insights, and engagement data
+    """
+    if not workflow["selected_content"]:
+        return {"error": "No content selected. Use select_content() first."}
+    
+    content = workflow["selected_content"]
+    platform = workflow["platform"]
+    
+    # Extract text content
+    text = ""
+    if platform == "youtube":
+        text = (content.get("title", "") + " " + 
+                content.get("description", "") + " " + 
+                content.get("subtitles", ""))
+    elif platform == "tiktok":
+        text = content.get("text", "")
+    elif platform == "instagram":
+        text = content.get("caption", "")
+    elif platform == "linkedin":
+        text = content.get("text", "")
+    
+    # Extract metrics and insights
+    metrics = extract_metrics(text)
+    
+    # Analyze engagement if available
+    engagement = {
+        "views": content.get("viewCount") or content.get("playCount", 0),
+        "likes": content.get("diggCount") or content.get("likesCount") or content.get("numLikes", 0),
+        "comments": content.get("commentCount") or content.get("commentsCount") or content.get("numComments", 0)
+    }
+    
+    workflow["analysis"] = {
+        "platform": platform,
+        "metrics": metrics,
+        "text_length": len(text),
+        "engagement": engagement,
+        "core_message": text[:200] if text else "No content text available"
+    }
+    
+    return {
+        "status": "success",
+        "analysis": workflow["analysis"],
+        "next_step": "Use generate_content_ideas() to create LinkedIn post concepts"
+    }
+
+@mcp.tool()
+def analyze_engagement() -> dict:
+    """
+    Analyze comments/engagement for the selected content.
+    
+    Returns:
+        Comment analysis with pain points, questions, sentiment
+    """
+    if not workflow["selected_content"]:
+        return {"error": "No content selected. Use select_content() first."}
+    
+    platform = workflow["platform"]
+    content = workflow["selected_content"]
+    
+    # Get content URL for comment scraping
+    url = content.get("url") or content.get("webVideoUrl", "")
+    if not url:
+        return {"error": "No URL found for comment analysis"}
+    
+    # Scrape comments based on platform
+    if platform == "youtube":
+        result = call_apify("streamers/youtube-comments-scraper", {"videoURLs": [url]})
+    elif platform == "tiktok":
+        result = call_apify("clockworks/tiktok-comments-scraper", {"postURLs": [url], "commentsPerPost": 100})
+    elif platform == "instagram":
+        result = call_apify("apify/instagram-comment-scraper", {"postUrls": [url]})
+    elif platform == "linkedin":
+        result = call_apify("apimaestro/linkedin-post-comments-replies-engagements-scraper-no-cookies", {"postUrls": [url]})
+    else:
+        return {"error": f"Comment analysis not supported for {platform}"}
+    
+    if result.get("success"):
+        comments = result["data"]
+        analysis = analyze_comments(comments)
+        
+        # Add to workflow analysis
+        workflow["analysis"]["comments"] = analysis
+        
+        return {
+            "status": "success",
+            "comment_analysis": analysis,
+            "next_step": "Use generate_content_ideas() to create LinkedIn post concepts"
+        }
+    
+    return {"status": "error", "error": result.get("error", "Comment analysis failed")}
+
+@mcp.tool()
+def generate_content_ideas() -> dict:
+    """
+    Generate LinkedIn content ideas based on analysis.
+    
+    Returns:
+        List of content ideas ready for LinkedIn posts
+    """
+    if not workflow["analysis"]:
+        return {"error": "No analysis available. Analyze content first."}
+    
+    niche = workflow["niche"]
+    analysis = workflow["analysis"]
+    metrics = analysis.get("metrics", [])
+    
+    ideas = []
+    
+    # Idea 1: Metric-based hook
+    if metrics:
+        metric = metrics[0]
+        ideas.append(f"The #1 mistake I see with {niche}? {metric} of people focus on the wrong approach. After analyzing viral content, I discovered the real opportunity lies in strategic thinking over tactical execution.")
+    
+    # Idea 2: Pain point hook
+    comments = analysis.get("comments", {})
+    if comments.get("pain_points"):
+        pain = comments["pain_points"][0][:50]
+        ideas.append(f"I keep seeing the same problem: '{pain}...' Here's what most people get wrong about {niche} and how to fix it.")
+    
+    # Idea 3: Contrarian hook
+    core_message = analysis.get("core_message", "")
+    if core_message:
+        ideas.append(f"Unpopular opinion about {niche}: {core_message[:100]}... This changes everything.")
+    
+    # Fallback ideas
+    if not ideas:
+        ideas = [
+            f"The truth about {niche} that nobody talks about",
+            f"Why most {niche} advice is completely wrong",
+            f"The {niche} mistake that's costing you opportunities"
+        ]
+    
+    workflow["content_ideas"] = ideas[:3]
+    
+    return {
+        "status": "success",
+        "ideas": workflow["content_ideas"],
+        "next_step": "Use create_linkedin_posts(idea_index) to generate final posts"
+    }
+
+@mcp.tool()
+def create_linkedin_posts(idea_index: int = 1) -> dict:
+    """
+    Create LinkedIn posts based on selected idea.
+    
+    Args:
+        idea_index: Which content idea to use (1-3, default: 1)
+    
+    Returns:
+        3 LinkedIn posts ready to publish
+    """
+    if not workflow["content_ideas"]:
+        return {"error": "No content ideas available. Generate ideas first."}
+    
+    if idea_index < 1 or idea_index > len(workflow["content_ideas"]):
+        idea_index = 1
+    
+    selected_idea = workflow["content_ideas"][idea_index - 1]
+    niche = workflow["niche"]
+    analysis = workflow["analysis"]
+    
+    # Get metrics for posts
+    metrics = analysis.get("metrics", [])
+    metric = metrics[0] if metrics else "Key insight"
+    
+    # Post 1: Problem-Solution format
+    post1 = f"""{selected_idea}
+
+After analyzing {workflow['platform']} content in the {niche} space, here's what I found:
+
+❌ Most people focus on quantity over quality
+✅ Top performers prioritize strategic insights
+
+The difference? They understand that success comes from consistent value delivery, not viral moments.
+
+What's your experience with {niche}?"""
+
+    # Post 2: Story-driven format
+    post2 = f"""Last week, I dove deep into {niche} content analysis.
+
+The results were eye-opening:
+
+{metric} stood out as the key differentiator.
+
+But here's what surprised me most: {selected_idea.split('?')[1] if '?' in selected_idea else 'The approach that works is often counterintuitive'}
+
+This completely changed how I think about {niche}.
+
+Are you making this same mistake?"""
+
+    # Post 3: Contrarian take
+    post3 = f"""Unpopular opinion: {selected_idea}
+
+Everyone talks about best practices in {niche}, but nobody mentions:
+
+• Quality beats quantity every single time
+• Authentic stories outperform generic tips
+• Engagement comes from genuine value, not tricks
+
+The data doesn't lie. Are you ready to try a different approach?
+
+What's worked for you in {niche}?"""
+
+    posts = [post1, post2, post3]
+    workflow["generated_posts"] = posts
+    
+    return {
+        "status": "success",
+        "posts": posts,
+        "selected_idea": selected_idea,
+        "message": "🎉 LinkedIn posts generated! Ready to publish."
+    }
+
+@mcp.tool()
+def get_workflow_status() -> dict:
+    """
+    Get current workflow status and next steps.
+    
+    Returns:
+        Complete workflow status and guidance
+    """
+    return {
+        "niche": workflow["niche"],
+        "platform": workflow["platform"],
+        "discovered_content": len(workflow["discovered_content"]),
+        "content_selected": bool(workflow["selected_content"]),
+        "analysis_complete": bool(workflow["analysis"]),
+        "ideas_generated": len(workflow["content_ideas"]),
+        "posts_created": len(workflow["generated_posts"]),
+        "apify_configured": bool(os.getenv("APIFY_TOKEN")),
+        "knowledge_base": {
+            "hooks_loaded": len(load_hooks()) > 1000,
+            "templates_loaded": len(load_templates()) > 1000
+        },
+        "next_step": _get_next_step()
+    }
+
+def _get_next_step() -> str:
+    """Determine next workflow step"""
+    if not workflow["niche"]:
+        return "Use start_content_discovery(niche, platform)"
+    elif not workflow["discovered_content"]:
+        return f"Use scrape_{workflow['platform']}() to find content"
+    elif not workflow["selected_content"]:
+        return "Use select_content(index) to choose content"
+    elif not workflow["analysis"]:
+        return "Use analyze_selected_content() to extract insights"
+    elif not workflow["content_ideas"]:
+        return "Use generate_content_ideas() to create concepts"
+    elif not workflow["generated_posts"]:
+        return "Use create_linkedin_posts() to generate final posts"
+    else:
+        return "Workflow complete! Posts ready to publish."
+
+if __name__ == "__main__":
+    print("🚀 LinkedIn Viral Content Generator MCP Server")
+    print("📊 Complete workflow: Discovery → Analysis → LinkedIn Posts")
+    print("🔧 Tools: 11 MCP tools for viral content creation")
+    print("📚 Knowledge Base: Hooks + Templates loaded")
+    print("🔗 MCP Endpoint: /mcp")
+    print()
+    
+    # Run MCP server
+    mcp.run()
