@@ -6,11 +6,14 @@ A minimal FastMCP server that integrates with Apify actors to scrape social medi
 and generate viral LinkedIn posts using hook templates and content patterns.
 """
 
+#!/usr/bin/env python3
 import os
 import json
 import requests
 import time
-from typing import Dict, List, Optional, Any
+import re
+from typing import Dict, Optional, Any
+from typing import List
 from pathlib import Path
 
 from fastmcp import FastMCP
@@ -22,14 +25,13 @@ load_dotenv()
 # Initialize FastMCP server
 mcp = FastMCP("LinkedIn Viral Content Generator")
 
-# Configuration
-APIFY_TOKEN = os.getenv("APIFY_TOKEN")
-APIFY_BASE_URL = "https://api.apify.com/v2"
-
-# Knowledge base paths
-KNOWLEDGE_BASE_DIR = Path(__file__).parent / "knowledge_base"
-HOOKS_FILE = KNOWLEDGE_BASE_DIR / "hooks.md"
-CONTENT_TEMPLATES_FILE = KNOWLEDGE_BASE_DIR / "content_templates.md"
+# Configuration - lazy loading to avoid module-level API connections
+def get_config():
+    return {
+        "APIFY_TOKEN": os.getenv("APIFY_TOKEN"),
+        "APIFY_BASE_URL": "https://api.apify.com/v2",
+        "KNOWLEDGE_BASE_DIR": Path(__file__).parent / "knowledge_base",
+    }
 
 # Global storage for workflow state
 workflow_state = {
@@ -46,6 +48,10 @@ workflow_state = {
 
 def make_apify_request(actor_id: str, input_data: Dict[str, Any]) -> Dict[str, Any]:
     """Make a request to an Apify actor and wait for completion."""
+    config = get_config()
+    APIFY_TOKEN = config["APIFY_TOKEN"]
+    APIFY_BASE_URL = config["APIFY_BASE_URL"]
+    
     if not APIFY_TOKEN:
         raise ValueError("APIFY_TOKEN environment variable is required")
     
@@ -90,6 +96,11 @@ def make_apify_request(actor_id: str, input_data: Dict[str, Any]) -> Dict[str, A
 
 def load_knowledge_base() -> Dict[str, str]:
     """Load hook templates and content templates from knowledge base."""
+    config = get_config()
+    KNOWLEDGE_BASE_DIR = config["KNOWLEDGE_BASE_DIR"]
+    HOOKS_FILE = KNOWLEDGE_BASE_DIR / "hooks.md"
+    CONTENT_TEMPLATES_FILE = KNOWLEDGE_BASE_DIR / "content_templates.md"
+    
     knowledge = {"hooks": "", "content_templates": ""}
     
     if HOOKS_FILE.exists():
@@ -532,7 +543,6 @@ def extract_content_insights(text: str) -> Dict[str, Any]:
     }
     
     # Look for numbers and percentages
-    import re
     
     # Find percentages
     percentages = re.findall(r'\b\d+%', text)
@@ -768,20 +778,52 @@ def _get_next_step() -> str:
         return "Workflow complete! Posts generated successfully."
 
 
+def create_railway_app():
+    """Create Railway-compatible HTTP app using FastMCP's http_app method."""
+    config = get_config()
+    print(f"Creating Railway app...")
+    print(f"APIFY_TOKEN configured: {bool(config['APIFY_TOKEN'])}")
+    
+    KNOWLEDGE_BASE_DIR = config["KNOWLEDGE_BASE_DIR"]
+    HOOKS_FILE = KNOWLEDGE_BASE_DIR / "hooks.md"
+    CONTENT_TEMPLATES_FILE = KNOWLEDGE_BASE_DIR / "content_templates.md"
+    
+    print(f"Knowledge base files exist: hooks={HOOKS_FILE.exists()}, templates={CONTENT_TEMPLATES_FILE.exists()}")
+    
+    # Get the HTTP app from FastMCP
+    app = mcp.http_app()
+    
+    # Add a health check route using Starlette routing
+    from starlette.responses import JSONResponse
+    from starlette.routing import Route
+    
+    async def health_check(request):
+        return JSONResponse({
+            "status": "healthy",
+            "server": "LinkedIn Viral Content Generator MCP Server",
+            "apify_token_configured": bool(config['APIFY_TOKEN']),
+            "knowledge_base_loaded": HOOKS_FILE.exists() and CONTENT_TEMPLATES_FILE.exists(),
+            "transport": "http",
+            "mcp_endpoint": "/mcp"
+        })
+    
+    # Add the health route to the existing app
+    health_route = Route("/health", health_check, methods=["GET"])
+    app.routes.append(health_route)
+    
+    return app
+
+
 if __name__ == "__main__":
     # Support both stdio and HTTP transports
-    import sys
-    
-    # Check if running on Railway (has PORT environment variable)
     port = os.getenv("PORT")
     
     if port:
-        # Railway deployment - use HTTP transport
-        print(f"Starting MCP server on HTTP port {port}")
-        print(f"APIFY_TOKEN configured: {bool(APIFY_TOKEN)}")
-        print(f"Knowledge base files exist: hooks={HOOKS_FILE.exists()}, templates={CONTENT_TEMPLATES_FILE.exists()}")
-        
-        mcp.run(transport="http", host="0.0.0.0", port=int(port))
+        # Railway deployment - use HTTP app with uvicorn
+        print(f"Starting MCP server for Railway on port {port}")
+        import uvicorn
+        app = create_railway_app()
+        uvicorn.run(app, host="0.0.0.0", port=int(port))
     else:
         # Local development - use stdio transport
         print("Starting MCP server with stdio transport")

@@ -78,9 +78,10 @@ python3 server.py
 PORT=8000 python3 server.py
 # Server will be available at http://localhost:8000/mcp
 
-# Test with FastMCP Inspector
-npx @mcpjam/inspector@latest
-# Connect to http://localhost:8000/mcp in the Inspector UI
+# Test with official MCP Inspector
+npx @modelcontextprotocol/inspector
+# Inspector will launch at http://localhost:6274/
+# Use HTTP transport to connect to http://localhost:8000/mcp
 ```
 
 ## ✨ Features
