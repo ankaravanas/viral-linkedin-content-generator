@@ -8,24 +8,26 @@
 │                               FastMCP 2.13.0.2                               │
 │                                                                              │
 │                                                                              │
-│               🖥  Server name: LinkedIn Viral Content Generator               │
+│                  🖥  Server name: LinkedIn Content Generator                  │
 │                                                                              │
-│               📦 Transport:   SSE                                            │
-│               🔗 Server URL:  http://0.0.0.0:8000/sse                        │
+│                  📦 Transport:   HTTP                                        │
+│                  🔗 Server URL:  http://0.0.0.0:8031/mcp                     │
 │                                                                              │
-│               📚 Docs:        https://gofastmcp.com                          │
-│               🚀 Hosting:     https://fastmcp.cloud                          │
+│                  📚 Docs:        https://gofastmcp.com                       │
+│                  🚀 Hosting:     https://fastmcp.cloud                       │
 │                                                                              │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 
 
-[11/12/25 15:17:15] INFO     Starting MCP server 'LinkedIn Viral  server.py:2050
+[11/12/25 16:04:05] INFO     Starting MCP server 'LinkedIn        server.py:2050
                              Content Generator' with transport                  
-                             'sse' on http://0.0.0.0:8000/sse                   
-INFO:     Started server process [30884]
+                             'http' on http://0.0.0.0:8031/mcp                  
+INFO:     Started server process [35993]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
-ERROR:    [Errno 48] error while attempting to bind on address ('0.0.0.0', 8000): [errno 48] address already in use
+INFO:     Uvicorn running on http://0.0.0.0:8031 (Press CTRL+C to quit)
+INFO:     Shutting down
+ERROR:    Cancel 0 running task(s), timeout graceful shutdown exceeded
 INFO:     Waiting for application shutdown.
 INFO:     Application shutdown complete.
-Starting MCP server on HTTP port 8000
+INFO:     Finished server process [35993]
