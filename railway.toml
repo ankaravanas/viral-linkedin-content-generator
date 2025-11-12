@@ -2,11 +2,5 @@
 builder = "nixpacks"
 
 [deploy]
-startCommand = "python server.py"
-
-[env]
-APIFY_TOKEN = { $ref = "APIFY_TOKEN" }
-
-# MCP servers run as workers, not web services
-[experimental]
-disableStaticSites = true
+# Use HTTP wrapper for Railway deployment testing
+startCommand = "python http_wrapper.py"
