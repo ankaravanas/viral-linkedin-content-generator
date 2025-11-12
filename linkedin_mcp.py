@@ -73,8 +73,7 @@ def apify(actor: str, data: dict) -> dict:
 @mcp.tool()
 def start_discovery(niche: str, platform: str) -> str:
     """
-    Start the LinkedIn viral content generation workflow.
-    I can help you create viral LinkedIn lead magnet posts based on what's working on your chosen platform.
+    Start the LinkedIn viral content generation workflow with conversational guidance.
     
     Args:
         niche: Your content niche (e.g., "AI automation", "SaaS marketing", "productivity systems")
@@ -86,15 +85,15 @@ def start_discovery(niche: str, platform: str) -> str:
     state["selected"] = None
     state["analysis"] = {}
     
-    examples = "Examples: SaaS marketing, AI automation, productivity systems, personal finance, content creation"
-    
-    return f"""✅ Content discovery started for '{niche}' on {platform}
+    return f"""I can help you create viral LinkedIn lead magnet posts based on what's working on {platform} in your niche.
 
-I'll help you create viral LinkedIn posts by analyzing what's working in the {niche} space on {platform}.
+✅ Starting content discovery for: '{niche}' on {platform}
 
-{examples if not niche else ''}
+I'll search for high-performing content in the {niche} space, analyze what makes it viral, extract key insights, and help you create LinkedIn posts that convert.
 
-Next: Use {platform}() to discover viral content in your niche."""
+Ready to discover viral content? I'll search {platform} and present you with the top-performing content to choose from.
+
+Would you like me to proceed with finding viral {niche} content on {platform}?"""
 
 @mcp.tool()
 def youtube(query: str) -> dict:
@@ -129,9 +128,10 @@ def youtube(query: str) -> dict:
         
         return {
             "status": "success",
-            "message": f"Found {len(videos)} YouTube videos. Analyze them for viral patterns:",
+            "message": f"Found {len(videos)} YouTube videos in the {state.get('niche', 'your')} space:",
             "videos": videos,
-            "next_step": "Which of these videos would you like to analyze further for your LinkedIn content? Use select(index)."
+            "guidance": "I've analyzed these videos for viral potential. Look for high view counts, strong engagement, and compelling titles with numbers or contrarian viewpoints.",
+            "next_question": "Which of these videos would you like me to analyze further for your LinkedIn content? Please tell me the index number (1-5)."
         }
     
     return result
@@ -208,13 +208,50 @@ def linkedin(profile_url: str) -> dict:
 
 @mcp.tool()
 def select(index: int) -> str:
-    """Select content"""
+    """
+    Select content for detailed analysis.
+    Provides conversational feedback about the selection.
+    """
     if "content" not in state or not state["content"]:
-        return "No content available"
-    if 1 <= index <= len(state["content"]):
-        state["selected"] = state["content"][index - 1]
-        return f"Selected content {index}"
-    return "Invalid index"
+        return "I haven't found any content yet. Please use youtube(), tiktok(), instagram(), or linkedin() first to discover content."
+    
+    if index < 1 or index > len(state["content"]):
+        return f"Please choose a valid index between 1 and {len(state['content'])}. Which video/post would you like me to analyze?"
+    
+    selected = state["content"][index - 1]
+    state["selected"] = selected
+    
+    # Get content info for confirmation
+    if state.get("platform") == "youtube":
+        title = selected.get("title", "Unknown title")
+        views = selected.get("viewCount", 0)
+        return f"""Perfect! I've selected: "{title}" 
+
+This video has {views:,} views, which shows strong viral potential.
+
+Now I'll analyze this content to extract:
+- Key quantitative metrics (percentages, ROI figures, timeframes)
+- Core insights and frameworks
+- Pattern interrupts and contrarian viewpoints
+
+Ready for me to analyze this content for viral LinkedIn insights?"""
+    
+    elif state.get("platform") == "tiktok":
+        text = selected.get("text", "")[:100]
+        plays = selected.get("playCount", 0)
+        return f"""Great choice! I've selected the TikTok video: "{text}..."
+
+This video has {plays:,} plays with strong engagement signals.
+
+I'll analyze this short-form content focusing on:
+- Strong hooks and pattern interrupts (critical first 3 seconds)
+- Controversial or counterintuitive takes
+- Text overlays and captions for insights
+
+Ready for the analysis?"""
+    
+    else:
+        return f"✅ Selected content {index}. Ready to analyze this for viral LinkedIn insights?"
 
 @mcp.tool()
 def analyze() -> dict:
